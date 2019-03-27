@@ -8,14 +8,12 @@ import (
 //Arcs holds an arcset which is indexed by parents and then has an array of children. Children dominate parents in our trees.
 type Arcs map[int][]int
 
-type BinaryTree struct {
-	root *Node
-}
+type BinaryTree *Node
 
 type Node struct {
 	vertex          int
 	children        []*Node
-	canonicalNumber big.Int
+	canonicalNumber *big.Int
 }
 
 func main() {
@@ -24,10 +22,22 @@ func main() {
 		1: []int{2, 3},
 		2: []int{6, 5},
 		3: []int{7},
-		5: []int{9, 2},
+		5: []int{9, 4},
 	}
 
-	fmt.Println(newTree(testData))
+	testData2 := Arcs{
+		0:  []int{17, 23},
+		17: []int{111, 14},
+		23: []int{7},
+		14: []int{34, 42},
+	}
+
+	tree := newTree(testData)
+	scoreNode(tree)
+	fmt.Println(tree.canonicalNumber)
+	tree2 := newTree(testData2)
+	scoreNode(tree2)
+	fmt.Println(tree2.canonicalNumber)
 }
 
 /*
@@ -36,16 +46,29 @@ func encodeTree(arcSet []Arc) Node {
 	return tree
 }*/
 
+func scoreTree(tree BinaryTree) {
+	scoreNode(tree)
+}
+
+func scoreNode(inputNode *Node) {
+	if inputNode.children == nil {
+		inputNode.canonicalNumber = big.NewInt(2)
+	} else {
+		for _, child := range inputNode.children {
+			scoreNode(child)
+		}
+		if len(inputNode.children) == 2 {
+			concatCannonical(inputNode.children[0].canonicalNumber, inputNode.children[1].canonicalNumber, inputNode.canonicalNumber)
+		} else {
+			concatCannonical(inputNode.children[0].canonicalNumber, big.NewInt(0), inputNode.canonicalNumber)
+		}
+	}
+}
+
 func newTree(edges Arcs) BinaryTree {
-	root, children := findRoot(edges)
-	var rootNode Node //declare root node
-	rootNode.vertex = root
-
-	rootNode.children = makeNode(children, edges)
-
-	fmt.Println(children)
-	//rootNode.children = children
-	tree := BinaryTree{&rootNode}
+	root := findRoot(edges)
+	rootNode := makeNode(root, edges)
+	tree := BinaryTree(rootNode)
 
 	return tree
 }
@@ -53,18 +76,18 @@ func newTree(edges Arcs) BinaryTree {
 func makeNode(input int, edges Arcs) *Node {
 	var newNode Node
 	newNode.vertex = input
-	for vertex := range edges[input] {
-		newNode.children = makeNode(edges[input], edges)
+	newNode.canonicalNumber = big.NewInt(0)
+	if edges[input] == nil {
+		return &newNode
 	}
-	nodes = append(nodes, &newNode)
-	fmt.Println(vertex)
-
+	for _, vertex := range edges[input] {
+		newNode.children = append(newNode.children, makeNode(vertex, edges))
+	}
 	return &newNode
 }
 
-func findRoot(arcSet Arcs) (int, []int) {
+func findRoot(arcSet Arcs) int {
 	var root int
-	var children []int
 	for parent := range arcSet {
 		rootFlag := true
 		for _, checkArc := range arcSet {
@@ -77,35 +100,12 @@ func findRoot(arcSet Arcs) (int, []int) {
 		}
 		if rootFlag == true {
 			root = parent
-			children = arcSet[root]
 		}
 	}
 
-	return root, children
+	return root
 }
 
-/*
-func findLeaves(arcSet []Arc) ([]Arc, []Arc) {
-	fmt.Println(arcSet)
-	var leaves []Arc
-	var notLeaves []Arc
-	for _, arc := range arcSet {
-		leafFlag := true
-		for _, checkArc := range arcSet {
-			if arc.from == checkArc.to {
-				leafFlag = false
-			}
-
-		}
-		if leafFlag == true {
-			leaves = append(leaves, arc)
-		} else {
-			notLeaves = append(notLeaves, arc)
-		}
-	}
-	return notLeaves, leaves
-}
-*/
 func concatCannonical(x, y, out *big.Int) {
 	diff := new(big.Int)
 	diff.Sub(x, y)
@@ -119,14 +119,11 @@ func concatCannonical(x, y, out *big.Int) {
 func concatHelper(x, y, z *big.Int) {
 	shiftBy(x, int64(y.BitLen()))
 	z.Add(x, y)
-	fmt.Println(z)
 	shiftBy(z, int64(1)) //appends zero to the end of the bitstring
-	fmt.Println(z)
 	shift := int64(int64(z.BitLen()))
 	front := big.NewInt(1)
 	shiftBy(front, shift)
 	z.Add(z, front)
-	fmt.Println(z)
 }
 
 func shiftBy(x *big.Int, shift int64) {
